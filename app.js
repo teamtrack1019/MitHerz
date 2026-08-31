@@ -11,6 +11,7 @@ function getDB() {
                 schedules: [],
                 notifications: [],
                 absenceRequests: [],
+                drivingRecords: [],
                 adminPin: '0000'
             };
         }
@@ -18,6 +19,7 @@ function getDB() {
         if (!parsed.adminPin) parsed.adminPin = '0000';
         if (!parsed.schedules) parsed.schedules = [];
         if (!parsed.absenceRequests) parsed.absenceRequests = [];
+    if (!parsed.drivingRecords) parsed.drivingRecords = [];
         return parsed;
 }
 
@@ -334,6 +336,7 @@ const views = {
         </div>
         
         <div id="dash-employee-warning-container" class="hidden"></div>
+        <div id="dash-employee-driving-tracker"></div>
         <div id="dash-vertretung-container"></div>
         <div id="dash-admin-requests-container"></div>
         
@@ -1196,10 +1199,14 @@ function generateEmployeeSummaryPDF(employee, month, year, dbData, returnBlob = 
     // Gather all records for this employee this month
     const allRecords = getDB().records.filter(r => r.employeeId === employee.id && r.month === month && r.year === year);
     
+        // Gather all driving records for this employee this month
+    const drivingRecords = getDB().drivingRecords || [];
+    const empDrives = drivingRecords.filter(r => r.employeeId === employee.id && r.month === month && r.year === year);
+
     // Aggregate by day
     const aggregated = {};
     for (let d = 1; d <= 31; d++) {
-        aggregated[d] = { hours: 0, km: 0, absence: null, isVertretung: false };
+        aggregated[d] = { hours: 0, km: 0, driveMins: 0, absence: null, isVertretung: false };
     }
     
     let hasVertretung = false;
@@ -1216,7 +1223,7 @@ function generateEmployeeSummaryPDF(employee, month, year, dbData, returnBlob = 
             rec.entries.forEach(entry => {
                 if(entry.day) {
                     if (rec.clientId === 'ABSENCE' && entry.isAbsence) {
-                        aggregated[entry.day].absence = entry.type; // 'Krank' or 'Urlaub'
+                        aggregated[entry.day].absence = entry.type;
                     } else {
                         if (isVert) aggregated[entry.day].isVertretung = true;
                         aggregated[entry.day].hours += parseFloat(entry.duration || 0);
@@ -1226,22 +1233,31 @@ function generateEmployeeSummaryPDF(employee, month, year, dbData, returnBlob = 
             });
         }
     });
+
+    empDrives.forEach(r => {
+        if (r.dateStr && r.durationMins) {
+            const d = parseInt(r.dateStr.split('-')[2], 10);
+            if (aggregated[d]) {
+                aggregated[d].driveMins += r.durationMins;
+            }
+        }
+    });
     
     function getWeekday(day) {
         const date = new Date(year, parseInt(month)-1, day);
-        const wd = date.getDay(); // 0 = Sunday, 6 = Saturday
+        const wd = date.getDay();
         if(wd === 0) return 'So.';
         if(wd === 6) return 'Sa.';
         return '';
     }
     
-    // Function to draw a 15-day table
     function drawTable(startX, startY, startDay, endDay) {
         const rowH = 6;
-        const col1 = 15; // Tag
-        const col2 = 25; // Stunden
-        const col3 = 25; // Kilometer
-        const totalW = col1 + col2 + col3;
+        const col1 = 15;
+        const col2 = 22;
+        const col3 = 22;
+        const col4 = 22;
+        const totalW = col1 + col2 + col3 + col4;
         
         doc.setFontSize(11);
         doc.setFont("helvetica", "bold");
@@ -1251,28 +1267,30 @@ function generateEmployeeSummaryPDF(employee, month, year, dbData, returnBlob = 
         
         doc.setFontSize(11);
         doc.text("Stunden", startX + col1 + 2, startY + 5);
+        
         doc.text("Kilometer", startX + col1 + col2 + 2, startY + 5);
         doc.setFontSize(9);
         doc.text("(gerundet)", startX + col1 + col2 + 2, startY + 9);
         
+        doc.setFontSize(11);
+        doc.text("Fahrzeit", startX + col1 + col2 + col3 + 2, startY + 5);
+        doc.setFontSize(9);
+        doc.text("(Minuten)", startX + col1 + col2 + col3 + 2, startY + 9);
+        
         const tableY = startY + 12;
         doc.rect(startX, tableY, totalW, rowH * (endDay - startDay + 1));
         
-        // Vertical lines
         doc.setLineWidth(0.3);
         doc.line(startX + col1, tableY, startX + col1, tableY + rowH * (endDay - startDay + 1));
-        doc.setLineWidth(1.0); // Thick line between Stunden and Kilometer
+        doc.setLineWidth(1.0);
         doc.line(startX + col1 + col2, tableY, startX + col1 + col2, tableY + rowH * (endDay - startDay + 1));
         doc.setLineWidth(0.3);
+        doc.line(startX + col1 + col2 + col3, tableY, startX + col1 + col2 + col3, tableY + rowH * (endDay - startDay + 1));
         
         let cy = tableY;
         for (let d = startDay; d <= endDay; d++) {
-            if(d > 31) break; // skip if month has < 31 days but we print up to 31
-            
-            // Horizontal line
-            if (d > startDay) {
-                doc.line(startX, cy, startX + totalW, cy);
-            }
+            if(d > 31) break;
+            if (d > startDay) doc.line(startX, cy, startX + totalW, cy);
             
             doc.setFont("helvetica", "bold");
             doc.setFontSize(9);
@@ -1285,26 +1303,19 @@ function generateEmployeeSummaryPDF(employee, month, year, dbData, returnBlob = 
             
             const stats = aggregated[d];
             doc.setFontSize(12);
-            // Handwriting font style approximation
             let stundenText = '';
             
             if (stats && stats.hours > 0) {
                 stundenText = stats.hours.toString().replace('.', ',');
-                if (stats.isVertretung) {
-                    stundenText += ' (V)';
-                }
+                if (stats.isVertretung) stundenText += ' (V)';
             }
             
             if (stats && stats.absence) {
-                if (stundenText !== '') {
-                    stundenText += ' / ' + stats.absence;
-                } else {
-                    stundenText = stats.absence;
-                }
+                if (stundenText !== '') stundenText += ' / ' + stats.absence;
+                else stundenText = stats.absence;
             }
             
             if (stundenText !== '') {
-                // If it contains text (Krank/Urlaub), make it bold and a bit smaller to fit
                 if (stats.absence) {
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(10);
@@ -1314,23 +1325,16 @@ function generateEmployeeSummaryPDF(employee, month, year, dbData, returnBlob = 
                 doc.setFontSize(12);
             }
             
-            if (stats && stats.km > 0 && !stats.absence) {
-                doc.text(stats.km.toString(), startX + col1 + col2 + 5, cy + 4.5);
-            } else if (stats && stats.km > 0 && stats.absence) {
-                // If there is both absence and km, we still print KM.
-                doc.text(stats.km.toString(), startX + col1 + col2 + 5, cy + 4.5);
-            }
+            if (stats && stats.km > 0) doc.text(stats.km.toString(), startX + col1 + col2 + 5, cy + 4.5);
+            if (stats && stats.driveMins > 0) doc.text(stats.driveMins.toString(), startX + col1 + col2 + col3 + 5, cy + 4.5);
             
             cy += rowH;
         }
     }
     
-    // Draw Left Table (1-16)
     drawTable(14, 90, 1, 16);
-    
-    // Draw Right Table (17-31)
-    drawTable(100, 90, 17, 31);
-    
+    drawTable(105, 90, 17, 31);
+
     // Bottom text
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
@@ -1644,6 +1648,147 @@ class App {
         return todaysEntries.sort((a, b) => a.start.localeCompare(b.start));
     }
 
+    
+    renderDrivingTracker() {
+        const container = document.getElementById('dash-employee-driving-tracker');
+        if (!container || this.currentUserRole !== 'employee') return;
+
+        const data = getDB();
+        const activeDrive = (data.drivingRecords || []).find(r => r.employeeId === this.currentUserId && !r.endTime);
+
+        let html = `<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">`;
+        html += `<h3 style="color: #b45309; display:flex; align-items:center; gap:0.5rem; margin-bottom: 1rem;"><i data-lucide="navigation"></i> Fahrt-Tracker (Yol Süresi)</h3>`;
+
+        if (activeDrive) {
+            const client = data.clients.find(c => c.id === activeDrive.clientId);
+            const clientName = client ? `${client.fname} ${client.lname}` : 'Kunde';
+            
+            const startTimeStr = new Date(activeDrive.startTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            html += `
+                <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fde68a;">
+                    <p style="font-weight: bold; margin-bottom: 0.5rem; color: #92400e;">Unterwegs zu: ${clientName}</p>
+                    <p style="margin-bottom: 1rem; font-size: 0.9rem; color: #b45309;">Gestartet um: ${startTimeStr}</p>
+                    <button class="btn" style="background: #ef4444; color: white; width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: bold;" onclick="window.app.stopDriving('${activeDrive.id}')">
+                        <i data-lucide="map-pin"></i> Vardım (Stop)
+                    </button>
+                    <button class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; color: #6b7280; font-size: 0.85rem;" onclick="window.app.cancelDriving('${activeDrive.id}')">
+                        <i data-lucide="x"></i> Fahrt abbrechen
+                    </button>
+                </div>
+            `;
+        } else {
+            const todaysEntries = this.getTodaysAppointments() || [];
+            let options = '<option value="">-- Kunde auswählen --</option>';
+            
+            const uniqueClientIds = [...new Set(todaysEntries.map(e => e.clientId))];
+            uniqueClientIds.forEach(cid => {
+                const client = data.clients.find(c => c.id === cid);
+                if (client) {
+                    options += `<option value="${client.id}">${client.fname} ${client.lname}</option>`;
+                }
+            });
+            
+            data.clients.forEach(c => {
+                if (!uniqueClientIds.includes(c.id)) {
+                    options += `<option value="${c.id}">${c.fname} ${c.lname} (Nicht im Plan)</option>`;
+                }
+            });
+
+            html += `
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+                    <select id="drive-client-select" class="form-control" style="font-size: 1rem; padding: 0.75rem;">
+                        ${options}
+                    </select>
+                    <button class="btn" style="background: #10b981; color: white; width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: bold;" onclick="window.app.startDriving()">
+                        <i data-lucide="play"></i> Yola Çıktım (Start)
+                    </button>
+                </div>
+            `;
+        }
+        html += `</div>`;
+        container.innerHTML = html;
+        if(window.lucide) lucide.createIcons();
+    }
+
+    startDriving() {
+        const clientId = document.getElementById('drive-client-select').value;
+        if (!clientId) return alert("Bitte wähle zuerst einen Kunden aus!");
+        
+        const data = getDB();
+        const client = data.clients.find(c => c.id === clientId);
+        if (!client) return;
+
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition((position) => {
+                this._recordStartDrive(clientId, position);
+            }, (error) => {
+                console.warn("Geolocation denied or error, starting drive without location.", error);
+                this._recordStartDrive(clientId, null);
+            });
+        } else {
+            this._recordStartDrive(clientId, null);
+        }
+    }
+    
+    _recordStartDrive(clientId, position) {
+        const data = getDB();
+        if (!data.drivingRecords) data.drivingRecords = [];
+        
+        const now = new Date();
+        data.drivingRecords.push({
+            id: generateId(),
+            employeeId: this.currentUserId,
+            clientId: clientId,
+            startTime: now.toISOString(),
+            dateStr: now.toISOString().split('T')[0],
+            month: String(now.getMonth() + 1).padStart(2, '0'),
+            year: String(now.getFullYear())
+        });
+        saveDB(data);
+        if (typeof syncToFirebase === 'function') syncToFirebase(data);
+        
+        this.renderDrivingTracker();
+        
+        const client = data.clients.find(c => c.id === clientId);
+        if (client) {
+            let addr = `${client.street}, ${client.city}`;
+            if (position) {
+                addr = `${position.coords.latitude},${position.coords.longitude}/${addr}`;
+            }
+            window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.street + ', ' + client.city)}`, '_blank');
+        }
+    }
+
+    stopDriving(driveId) {
+        const data = getDB();
+        const drive = data.drivingRecords.find(r => r.id === driveId);
+        if (!drive) return;
+        
+        const now = new Date();
+        const start = new Date(drive.startTime);
+        const diffMs = now - start;
+        const diffMins = Math.round(diffMs / 60000);
+        
+        drive.endTime = now.toISOString();
+        drive.durationMins = diffMins;
+        
+        saveDB(data);
+        if (typeof syncToFirebase === 'function') syncToFirebase(data);
+        
+        this.renderDrivingTracker();
+        alert(`Fahrt beendet! Dauer: ${diffMins} Minuten.`);
+    }
+    
+    cancelDriving(driveId) {
+        if(!confirm("Fahrt wirklich abbrechen? (Es wird nicht gespeichert)")) return;
+        const data = getDB();
+        data.drivingRecords = data.drivingRecords.filter(r => r.id !== driveId);
+        saveDB(data);
+        if (typeof syncToFirebase === 'function') syncToFirebase(data);
+        this.renderDrivingTracker();
+    }
+
     renderDashEmployeeToday() {
         const container = document.getElementById('dash-employee-today');
         if (!container || this.currentUserRole !== 'employee') return;
@@ -1759,6 +1904,7 @@ class App {
         document.getElementById('modal-ausfall').style.display = 'none';
         
         this.renderDashEmployeeToday();
+            this.renderDrivingTracker();
     }
 
     async refreshAdminDashboard() {
@@ -1796,6 +1942,7 @@ class App {
             if (btnDashAbschluss) btnDashAbschluss.style.display = 'block';
             if (btnRefresh) btnRefresh.classList.add('hidden');
             this.renderDashEmployeeToday();
+            this.renderDrivingTracker();
         }
         document.getElementById('dash-user-name').textContent = greetingName;
         
