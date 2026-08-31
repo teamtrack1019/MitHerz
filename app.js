@@ -950,17 +950,21 @@ function generateClientPDF(client, employee, record, monthStr, returnBlob = fals
     doc.text("Dauer", 85, startY + 4);
     doc.text("(Stunden)", 82, startY + 8);
     
-    doc.text("Kilometer", 110, startY + 4);
-    doc.text("(gerundet)", 110, startY + 8);
+    doc.text("Kilometer", 108, startY + 4);
+    doc.text("(gerundet)", 108, startY + 8);
     
-    doc.text("Unterschrift Kunde", 150, startY + 6);
+    doc.text("Fahrzeit", 130, startY + 4);
+    doc.text("(Minuten)", 128, startY + 8);
+    
+    doc.text("Unterschrift Kunde", 155, startY + 6);
     
     // Vertical lines for header
     doc.line(30, startY, 30, startY + rowH * 2);
     doc.line(55, startY, 55, startY + rowH * 2);
     doc.line(80, startY, 80, startY + rowH * 2);
     doc.line(105, startY, 105, startY + rowH * 2);
-    doc.line(135, startY, 135, startY + rowH * 2);
+    doc.line(125, startY, 125, startY + rowH * 2);
+    doc.line(145, startY, 145, startY + rowH * 2);
     
     doc.line(14, startY + rowH * 2, 195, startY + rowH * 2);
     
@@ -969,8 +973,25 @@ function generateClientPDF(client, employee, record, monthStr, returnBlob = fals
     // Table Body for 31 days
     doc.setFont("helvetica", "normal");
     
+    const dbData = getDB();
+    const drivingRecords = dbData.drivingRecords || [];
+    
     for (let day = 1; day <= 31; day++) {
         let entry = record ? record.entries.find(e => e.day === day) : null;
+        
+        // Calculate driving time
+        let dayStr = String(day).padStart(2, '0');
+        let fDate = "";
+        if (monthStr && monthStr.includes('.')) {
+            let [mPart, yPart] = monthStr.split('.');
+            fDate = `${yPart}-${mPart}-${dayStr}`;
+        }
+        let driveTotal = 0;
+        drivingRecords.forEach(r => {
+            if (r.clientId === client.id && r.employeeId === (employee ? employee.id : '') && r.dateStr === fDate && r.durationMins) {
+                driveTotal += r.durationMins;
+            }
+        });
         
         // Draw row borders
         doc.rect(14, startY, 181, rowH);
@@ -979,7 +1000,8 @@ function generateClientPDF(client, employee, record, monthStr, returnBlob = fals
         doc.line(55, startY, 55, startY + rowH);
         doc.line(80, startY, 80, startY + rowH);
         doc.line(105, startY, 105, startY + rowH);
-        doc.line(135, startY, 135, startY + rowH);
+        doc.line(125, startY, 125, startY + rowH);
+        doc.line(145, startY, 145, startY + rowH);
         
         doc.setFont("helvetica", "bold");
         doc.text(day.toString(), 20, startY + 3.5);
@@ -992,12 +1014,17 @@ function generateClientPDF(client, employee, record, monthStr, returnBlob = fals
             doc.text(sTime, 34, startY + 3.5);
             doc.text(entry.end || '', 60, startY + 3.5);
             doc.text(entry.duration ? entry.duration.toString() : '', 88, startY + 3.5);
-            doc.text(entry.km ? entry.km.toString() : '', 115, startY + 3.5);
+            doc.text(entry.km ? entry.km.toString() : '', 110, startY + 3.5);
+            
             if (entry.signature) {
                 try {
-                    doc.addImage(entry.signature, 'PNG', 145, startY + 0.5, 35, rowH - 1);
+                    doc.addImage(entry.signature, 'PNG', 148, startY + 0.5, 35, rowH - 1);
                 } catch(e) {}
             }
+        }
+        
+        if (driveTotal > 0) {
+            doc.text(driveTotal.toString(), 130, startY + 3.5);
         }
         
         startY += rowH;
