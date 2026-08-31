@@ -1669,6 +1669,9 @@ class App {
                 <div style="background: #fef3c7; padding: 1rem; border-radius: 8px; text-align: center; border: 1px solid #fde68a;">
                     <p style="font-weight: bold; margin-bottom: 0.5rem; color: #92400e;">Unterwegs zu: ${clientName}</p>
                     <p style="margin-bottom: 1rem; font-size: 0.9rem; color: #b45309;">Gestartet um: ${startTimeStr}</p>
+                    <a href="https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(clientName !== 'Kunde' ? (client.street + ', ' + client.city) : '')}" target="_blank" class="btn" style="background: #3b82f6; color: white; width: 100%; padding: 0.75rem; font-size: 1rem; margin-bottom: 0.75rem; text-decoration: none; display: inline-block;">
+                        <i data-lucide="map"></i> Google Maps öffnen
+                    </a>
                     <button class="btn" style="background: #ef4444; color: white; width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: bold;" onclick="window.app.stopDriving('${activeDrive.id}')">
                         <i data-lucide="map-pin"></i> Angekommen (Stop)
                     </button>
@@ -1757,11 +1760,13 @@ class App {
         
         const client = data.clients.find(c => c.id === clientId);
         if (client) {
-            let addr = `${client.street}, ${client.city}`;
+            let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.street + ', ' + client.city)}`;
             if (position) {
-                addr = `${position.coords.latitude},${position.coords.longitude}/${addr}`;
+                url = `https://www.google.com/maps/dir/?api=1&origin=${position.coords.latitude},${position.coords.longitude}&destination=${encodeURIComponent(client.street + ', ' + client.city)}`;
             }
-            window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.street + ', ' + client.city)}`, '_blank');
+            
+            // Try assigning location href to deep link to Google Maps without popup blocker
+            window.location.href = url;
         }
     }
 
