@@ -1657,7 +1657,7 @@ class App {
         const activeDrive = (data.drivingRecords || []).find(r => r.employeeId === this.currentUserId && !r.endTime);
 
         let html = `<div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #f59e0b;">`;
-        html += `<h3 style="color: #b45309; display:flex; align-items:center; gap:0.5rem; margin-bottom: 1rem;"><i data-lucide="navigation"></i> Fahrt-Tracker (Yol Süresi)</h3>`;
+        html += `<h3 style="color: #b45309; display:flex; align-items:center; gap:0.5rem; margin-bottom: 1rem;"><i data-lucide="navigation"></i> Fahrt-Tracker</h3>`;
 
         if (activeDrive) {
             const client = data.clients.find(c => c.id === activeDrive.clientId);
@@ -1670,7 +1670,7 @@ class App {
                     <p style="font-weight: bold; margin-bottom: 0.5rem; color: #92400e;">Unterwegs zu: ${clientName}</p>
                     <p style="margin-bottom: 1rem; font-size: 0.9rem; color: #b45309;">Gestartet um: ${startTimeStr}</p>
                     <button class="btn" style="background: #ef4444; color: white; width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: bold;" onclick="window.app.stopDriving('${activeDrive.id}')">
-                        <i data-lucide="map-pin"></i> Vardım (Stop)
+                        <i data-lucide="map-pin"></i> Angekommen (Stop)
                     </button>
                     <button class="btn btn-secondary" style="width: 100%; margin-top: 0.5rem; color: #6b7280; font-size: 0.85rem;" onclick="window.app.cancelDriving('${activeDrive.id}')">
                         <i data-lucide="x"></i> Fahrt abbrechen
@@ -1679,20 +1679,25 @@ class App {
             `;
         } else {
             const todaysEntries = this.getTodaysAppointments() || [];
-            let options = '<option value="">-- Kunde auswählen --</option>';
+            let options = '<option value="">-- Kunde auswhlen --</option>';
             
-            const uniqueClientIds = [...new Set(todaysEntries.map(e => e.clientId))];
-            uniqueClientIds.forEach(cid => {
-                const client = data.clients.find(c => c.id === cid);
-                if (client) {
-                    options += `<option value="${client.id}">${client.fname} ${client.lname}</option>`;
+            // Only show clients assigned to this employee, or vertretung, or in today's schedule
+            const myClients = data.clients.filter(c => 
+                c.assignedEmployee === this.currentUserId || 
+                c.vertretungEmployee === this.currentUserId || 
+                todaysEntries.some(e => e.clientId === c.id)
+            );
+
+            // Create unique list in case of duplicates
+            const uniqueClients = [];
+            myClients.forEach(c => {
+                if (!uniqueClients.find(uc => uc.id === c.id)) {
+                    uniqueClients.push(c);
                 }
             });
-            
-            data.clients.forEach(c => {
-                if (!uniqueClientIds.includes(c.id)) {
-                    options += `<option value="${c.id}">${c.fname} ${c.lname} (Nicht im Plan)</option>`;
-                }
+
+            uniqueClients.forEach(client => {
+                options += `<option value="${client.id}">${client.fname} ${client.lname}</option>`;
             });
 
             html += `
@@ -1701,7 +1706,7 @@ class App {
                         ${options}
                     </select>
                     <button class="btn" style="background: #10b981; color: white; width: 100%; padding: 1rem; font-size: 1.1rem; font-weight: bold;" onclick="window.app.startDriving()">
-                        <i data-lucide="play"></i> Yola Çıktım (Start)
+                        <i data-lucide="play"></i> Fahrt starten (Start)
                     </button>
                 </div>
             `;
