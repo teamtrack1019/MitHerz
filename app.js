@@ -3025,7 +3025,20 @@ class App {
         const pendingAbschluss = requests.filter(r => r.status === 'pending' && r.type === 'abschluss');
         const pendingClientAbschluss = requests.filter(r => r.status === 'pending' && r.type === 'client_abschluss');
         
-        if (pendingAbsences.length === 0 && pendingAbschluss.length === 0 && pendingClientAbschluss.length === 0) {
+        const d = new Date();
+        const currentMonth = String(d.getMonth() + 1).padStart(2, '0');
+        const nextMonthDate = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+        const nextMonth = String(nextMonthDate.getMonth() + 1).padStart(2, '0');
+        const currentYear = String(d.getFullYear());
+        const nextMonthYear = String(nextMonthDate.getFullYear());
+
+        const schedules = getDB().schedules || [];
+        const submittedSchedules = schedules.filter(s => 
+            s.status === 'submitted' && 
+            ((s.month === currentMonth && s.year === currentYear) || (s.month === nextMonth && s.year === nextMonthYear))
+        );
+
+        if (pendingAbsences.length === 0 && pendingAbschluss.length === 0 && pendingClientAbschluss.length === 0 && submittedSchedules.length === 0) {
             container.innerHTML = '';
             return;
         }
@@ -3033,6 +3046,39 @@ class App {
         const allEmployees = getDB().employees || [];
         
         let html = '';
+        
+        if (submittedSchedules.length > 0) {
+            html += `
+            <div class="card" style="margin-bottom: 1.5rem; border-left: 4px solid #3b82f6;">
+                <h3 style="color: #3b82f6; margin-bottom: 1rem;">
+                    <i data-lucide="calendar" style="width: 1.2rem; height: 1.2rem; vertical-align: middle;"></i> 
+                    Eingereichte Wochenpläne (${submittedSchedules.length})
+                </h3>
+                <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            `;
+            
+            submittedSchedules.forEach(sch => {
+                const emp = allEmployees.find(e => e.id === sch.employeeId);
+                const empName = emp ? `${emp.fname} ${emp.lname}` : 'Unbekannt';
+                
+                html += `
+                <div style="background: #eff6ff; padding: 1rem; border-radius: 6px; border: 1px solid #bfdbfe; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="margin-bottom: 0.25rem;">
+                            <strong>${empName}</strong> hat den Wochenplan gesendet.
+                        </div>
+                        <div style="font-size: 0.95rem; color: #1d4ed8;">
+                            Monat: <strong>${sch.month}/${sch.year}</strong>
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" onclick="window.app.navigate('adminSchedules'); setTimeout(() => { document.getElementById('schedule-month-picker').value = '${sch.year}-${sch.month}'; window.app.loadAdminSchedules(); window.app.viewAdminCalendar('${sch.employeeId}'); }, 200);">
+                        <i data-lucide="eye"></i> Ansehen
+                    </button>
+                </div>
+                `;
+            });
+            html += `</div></div>`;
+        }
         
         if (pendingClientAbschluss.length > 0) {
             html += `
