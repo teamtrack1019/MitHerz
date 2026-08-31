@@ -3896,6 +3896,12 @@ class App {
         
         schedule.status = 'submitted';
         db.saveSchedule(schedule);
+        
+        // Notify admin
+        const emp = db.getEmployees().find(e => e.id === this.currentUserId);
+        const empName = emp ? (emp.fname + ' ' + emp.lname) : 'Mitarbeiter';
+        this.addNotification(null, `${empName} hat den Wochenplan für ${month}/${year} gesendet.`, 'info');
+        
         alert("Wochenplan erfolgreich gesendet!");
         this.loadEmployeeSchedule();
     }
