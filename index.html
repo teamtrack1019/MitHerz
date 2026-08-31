@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mit Herz - Haushaltshilfe</title>
+    <!-- Social Media Preview Tags -->
+    <meta property="og:title" content="Mit Herz - Haushaltshilfe">
+    <meta property="og:description" content="Mitarbeiter Portal - Mit Herz Haushaltshilfe">
+    <meta property="og:image" itemprop="image" content="/logo.jpg">
+    <meta property="og:type" content="website">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/jpeg" href="logo.jpg">
+    <link rel="apple-touch-icon" href="logo.jpg">
+    <link rel="stylesheet" href="app.css">
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+<body>
+    <div id="app">
+        <header id="header" class="hidden">
+            <button id="menu-btn" class="icon-btn"><i data-lucide="menu"></i></button>
+            <h1 id="page-title">Dashboard</h1>
+            <div style="position: relative;">
+                <button id="notification-btn" class="icon-btn" style="position: relative;" onclick="window.app.toggleNotifications()">
+                    <i data-lucide="bell"></i>
+                    <span id="notification-badge" style="display: none; position: absolute; top: 0; right: 0; width: 10px; height: 10px; background-color: #ef4444; border-radius: 50%;"></span>
+                </button>
+                <div id="notification-dropdown" class="hidden" style="position: absolute; top: 100%; right: 0; background: white; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 250px; max-height: 300px; overflow-y: auto; z-index: 1000; padding: 0.5rem;">
+                    <!-- Notifications will be injected here -->
+                </div>
+            </div>
+        </header>
+
+        <nav id="sidebar" class="hidden">
+            <div class="sidebar-header">
+                <h2>Mit Herz</h2>
+                <button id="close-sidebar" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#" data-view="dashboard"><i data-lucide="home"></i> Dashboard</a></li>
+                <li id="nav-clients"><a href="#" data-view="clients"><i data-lucide="users"></i> Kunden</a></li>
+                <li id="nav-employees" class="hidden"><a href="#" data-view="employees"><i data-lucide="briefcase"></i> Mitarbeiter</a></li>
+                <li id="nav-employee-schedule" class="hidden"><a href="#" data-view="employeeSchedule"><i data-lucide="calendar"></i> Mein Wochenplan</a></li>
+                <li id="nav-admin-schedules" class="hidden"><a href="#" data-view="adminSchedules"><i data-lucide="calendar-check"></i> Wochenpläne</a></li>
+                <li id="nav-absence"><a href="#" data-view="absence"><i data-lucide="calendar-off"></i> Krank / Urlaub eintragen</a></li>
+                <li id="nav-reports"><a href="#" data-view="reports"><i data-lucide="file-text"></i> PDF Berichte</a></li>
+                <li id="nav-settings" class="hidden"><a href="#" data-view="settings"><i data-lucide="settings"></i> Einstellungen & Backup</a></li>
+                <li><a href="#" onclick="window.app.logout()"><i data-lucide="log-out"></i> Abmelden</a></li>
+            </ul>
+        </nav>
+        <div id="sidebar-overlay" class="hidden"></div>
+
+        <div id="login-view" class="view" style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh; text-align: center; background: white; z-index: 1000; position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
+            <h1 id="secret-admin-trigger" style="font-size: 2.5rem; color: var(--primary); margin-bottom: 0.5rem; cursor: pointer; user-select: none;">Mit Herz</h1>
+            <p class="text-light" style="margin-bottom: 2rem;">Haushalts- und Betreuungsdienst</p>
+            
+            <div class="card" style="width: 100%; max-width: 400px; padding: 2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h3 style="margin-bottom: 1.5rem;">Ich bin Mitarbeiter</h3>
+                <div class="form-group text-left">
+                    <select id="login-employee-select" class="form-control">
+                        <option value="">-- Bitte wählen --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="password" id="login-employee-pin" class="form-control" placeholder="Persönliche PIN">
+                </div>
+                <button class="btn btn-primary btn-block" onclick="window.app.loginAsEmployee()">Weiter als Mitarbeiter</button>
+                
+                <div id="admin-login-section" style="display: none;">
+                    <div style="margin: 2rem 0; border-top: 1px solid var(--border); position: relative;">
+                        <span style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px; color: var(--text-light); font-size: 0.9rem;">ODER</span>
+                    </div>
+                    
+                    <h3 style="margin-bottom: 1.5rem;">Admin Bereich</h3>
+                    <div class="form-group">
+                        <input type="password" id="login-pin" class="form-control" placeholder="PIN eingeben (z.B. 0000)">
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="window.app.loginAsAdmin()">Login Admin</button>
+                </div>
+            </div>
+        </div>
+
+        <main id="main-content">
+        </main>
+    </div>
+
+    <!-- Logo for PDF -->
+    <img id="logo-img" src="logo.jpg" style="display:none;" alt="Logo">
+
+    <!-- Modal for Signature -->
+    <div id="signature-modal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Unterschrift Kunde</h3>
+                <button id="close-signature" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p>Bitte unterschreiben Sie auf dem Bildschirm.</p>
+                <div class="canvas-container">
+                    <canvas id="signature-pad"></canvas>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="clear-signature" class="btn btn-secondary">Löschen</button>
+                <button id="save-signature" class="btn btn-primary">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Notes -->
+    <div id="notes-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 90%; width: 400px;">
+            <div class="modal-header">
+                <h3>Notizen (Optional)</h3>
+                <button onclick="document.getElementById('notes-modal').classList.add('hidden')" class="icon-btn"><i data-lucide="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-light" style="font-size: 0.85rem; margin-bottom: 0.5rem;">Diese Notiz wird oben rechts auf Ihrem monatlichen Stunden/KM Bericht angedruckt.</p>
+                <textarea id="modal-notes-text" class="form-control" rows="5" style="width: 100%; resize: vertical;" placeholder="Zusätzliche Informationen oder extra Kilometer hier eintragen..."></textarea>
+            </div>
+            <div class="modal-footer" style="margin-top: 1rem;">
+                <button onclick="document.getElementById('notes-modal').classList.add('hidden')" class="btn btn-secondary">Abbrechen</button>
+                <button onclick="window.app.saveNotesModal()" class="btn btn-primary">Speichern</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ULTIMATE CACHE BUSTER
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                for(let registration of registrations) {
+                    registration.unregister();
+                }
+            });
+        }
+        if ('caches' in window) {
+            caches.keys().then(function(names) {
+                for (let name of names)
+                    caches.delete(name);
+            });
+        }
+    </script>
+    <script src="firebase.js"></script>
+    <script src="app.js?v=1069"></script>
+</body>
+</html>

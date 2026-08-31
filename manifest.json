@@ -1,0 +1,16 @@
+{
+    "name": "Mit Herz - Haushaltshilfe",
+    "short_name": "Mit Herz",
+    "description": "Haushaltshilfe und Betreuungsdienst Management App",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#4f46e5",
+    "icons": [
+        {
+            "src": "logo.jpg",
+            "sizes": "192x192 512x512",
+            "type": "image/jpeg"
+        }
+    ]
+}
