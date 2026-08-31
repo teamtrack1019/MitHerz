@@ -1785,16 +1785,11 @@ class App {
         
         this.renderDrivingTracker();
         
-        const client = data.clients.find(c => c.id === clientId);
-        if (client) {
-            let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(client.street + ', ' + client.city)}`;
-            if (position) {
-                url = `https://www.google.com/maps/dir/?api=1&origin=${position.coords.latitude},${position.coords.longitude}&destination=${encodeURIComponent(client.street + ', ' + client.city)}`;
-            }
-            
-            // Try assigning location href to deep link to Google Maps without popup blocker
-            window.location.href = url;
-        }
+        // The UI is now updated via this.renderDrivingTracker() above.
+        // We removed the automatic window.location.href redirection here 
+        // so that the Mit Herz app does not navigate away to Google Maps.
+        // The user can now manually click the "Google Maps öffnen" button in the UI, 
+        // which opens in a new tab (target="_blank") and preserves the app state.
     }
 
     stopDriving(driveId) {
