@@ -1413,6 +1413,19 @@ class App {
         }
         this.setupNavigation();
         
+        const empPinInput = document.getElementById('login-employee-pin');
+        if (empPinInput) {
+            empPinInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.loginAsEmployee();
+            });
+        }
+        const adminPinInput = document.getElementById('login-pin');
+        if (adminPinInput) {
+            adminPinInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') this.loginAsAdmin();
+            });
+        }
+        
         window.addEventListener('storage', (e) => {
             if (e.key === 'haushaltshilfe_db') {
                 if (this.currentView === 'dashboard') this.initDashboard();
