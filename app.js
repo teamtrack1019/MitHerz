@@ -3422,6 +3422,17 @@ class App {
         this.renderAdminRequests();
     }
     
+    markScheduleSeen(empId, month, year) {
+        const data = getDB();
+        if (!data.schedules) return;
+        const sch = data.schedules.find(s => s.employeeId === empId && s.month === month && s.year === year);
+        if (sch && sch.status === 'submitted') {
+            sch.status = 'seen';
+            saveDB(data);
+            if (typeof syncToFirebase === 'function') syncToFirebase(data);
+        }
+    }
+    
     deleteAbsenceRequest(reqId) {
         const data = getDB();
         if (!data.absenceRequests) return;
