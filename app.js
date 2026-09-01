@@ -3263,7 +3263,7 @@ class App {
                             Monat: <strong>${sch.month}/${sch.year}</strong>
                         </div>
                     </div>
-                    <button class="btn btn-primary" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" onclick="window.app.navigate('adminSchedules'); setTimeout(() => { document.getElementById('schedule-month-picker').value = '${sch.year}-${sch.month}'; window.app.loadAdminSchedules(); window.app.viewAdminCalendar('${sch.employeeId}'); }, 200);">
+                    <button class="btn btn-primary" style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" onclick="window.app.markScheduleSeen('${sch.employeeId}', '${sch.month}', '${sch.year}'); window.app.navigate('adminSchedules'); setTimeout(() => { document.getElementById('schedule-month-picker').value = '${sch.year}-${sch.month}'; window.app.loadAdminSchedules(); window.app.viewAdminCalendar('${sch.employeeId}'); }, 200);">
                         <i data-lucide="eye"></i> Ansehen
                     </button>
                 </div>
