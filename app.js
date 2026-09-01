@@ -3879,7 +3879,7 @@ class App {
         const submitBtn = document.getElementById('btn-submit-schedule');
         const gridsCont = document.getElementById('schedule-grids-container');
         
-        if (schedule.status === 'submitted') {
+        if (schedule.status === 'submitted' || schedule.status === 'seen') {
             statusBadge.innerHTML = '<span style="color: #059669; background: #d1fae5; padding: 0.5rem 1rem; border-radius: 4px;">Status: Beim Admin eingereicht</span>';
             submitBtn.style.display = 'none';
             gridsCont.style.pointerEvents = 'none'; // Lock editing
@@ -4292,7 +4292,7 @@ class App {
             let btnClass = 'btn-secondary';
             let isSubmitted = false;
             
-            if (sch && sch.status === 'submitted') {
+            if (sch && (sch.status === 'submitted' || sch.status === 'seen')) {
                 statusHtml = '<span style="color: #10b981; font-size: 0.85rem; font-weight: bold;">Eingereicht</span>';
                 btnClass = 'btn-primary';
                 isSubmitted = true;
