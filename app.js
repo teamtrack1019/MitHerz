@@ -3595,6 +3595,16 @@ class App {
         
         if(!empId) return alert("Bitte wählen Sie einen Mitarbeiter!");
         if(!entry.start || !entry.end) return alert("Bitte Start- und Endzeit eingeben!");
+        
+        if(!entry.signature) {
+            const warningModal = document.getElementById('signature-warning-modal');
+            if (warningModal) {
+                warningModal.classList.remove('hidden');
+            } else {
+                alert("Achtung! Bitte Unterschrift des Kunden für diesen Tag einholen!");
+            }
+            return;
+        }
 
         const month = (d.getMonth() + 1).toString().padStart(2, '0');
         const year = d.getFullYear().toString();
