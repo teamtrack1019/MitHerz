@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mit-herz-v67';
+const CACHE_NAME = 'mit-herz-v68';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
