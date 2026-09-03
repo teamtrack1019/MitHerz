@@ -557,7 +557,7 @@ const views = {
     
     dailyEntry: `
         <div style="margin-bottom: 1rem;">
-            <button class="btn btn-secondary" onclick="window.app.navigate('clients')">
+            <button class="btn btn-secondary" onclick="window.app.navigate(window.app.dailyEntrySource || 'clients')">
                 <i data-lucide="arrow-left"></i> Zurück
             </button>
         </div>
@@ -2857,6 +2857,7 @@ class App {
     }
 
     openDailyEntry(clientId) {
+        this.dailyEntrySource = this.currentView;
         this.currentEntryClient = db.getClients().find(c => c.id === clientId);
         this.navigate('dailyEntry');
     }
