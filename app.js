@@ -1784,14 +1784,17 @@ class App {
         if (!data.drivingRecords) data.drivingRecords = [];
         
         const now = new Date();
+        const year = String(now.getFullYear());
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
         data.drivingRecords.push({
             id: generateId(),
             employeeId: this.currentUserId,
             clientId: clientId,
             startTime: now.toISOString(),
-            dateStr: now.toISOString().split('T')[0],
-            month: String(now.getMonth() + 1).padStart(2, '0'),
-            year: String(now.getFullYear())
+            dateStr: `${year}-${month}-${day}`,
+            month: month,
+            year: year
         });
         saveDB(data);
         if (typeof syncToFirebase === 'function') syncToFirebase(data);

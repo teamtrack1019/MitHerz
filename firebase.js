@@ -30,12 +30,13 @@ const COL_SCHEDULES = "schedules";
 const COL_NOTIFICATIONS = "notifications";
 const COL_SETTINGS = "settings";
 const COL_ABSENCE_REQUESTS = "absenceRequests";
+const COL_DRIVING_RECORDS = "drivingRecords";
 
 async function syncFromFirebase() {
     if (!isFirebaseActive) return;
     
     try {
-        const data = { clients: [], employees: [], records: [], schedules: [], notifications: [], absenceRequests: [], adminPin: '0000' };
+        const data = { clients: [], employees: [], records: [], schedules: [], notifications: [], absenceRequests: [], adminPin: '0000', drivingRecords: [], employeeNotes: {} };
         
         const cSnap = await dbStore.collection(COL_CLIENTS).get();
         cSnap.forEach(d => data.clients.push(d.data()));
@@ -54,6 +55,17 @@ async function syncFromFirebase() {
         
         const arSnap = await dbStore.collection(COL_ABSENCE_REQUESTS).get();
         arSnap.forEach(d => data.absenceRequests.push(d.data()));
+        
+        const drSnap = await dbStore.collection(COL_DRIVING_RECORDS).get();
+        drSnap.forEach(d => data.drivingRecords.push(d.data()));
+        
+        const notesSnap = await dbStore.collection('employeeNotes').get();
+        notesSnap.forEach(d => { data.employeeNotes[d.id] = d.data().text; });
+        
+        const vertSnap = await dbStore.collection('vertretungDecisions').get();
+        const vertretungen = [];
+        vertSnap.forEach(d => vertretungen.push(d.data()));
+        localStorage.setItem('haushaltshilfe_vertretungen', JSON.stringify(vertretungen));
         
         const exSnap = await dbStore.collection('exceptions').get();
         exSnap.forEach(d => { if(!data.exceptions) data.exceptions=[]; data.exceptions.push(d.data()); });
@@ -93,6 +105,20 @@ async function syncToFirebase(data) {
         for(let ar of data.absenceRequests || []) {
             await dbStore.collection(COL_ABSENCE_REQUESTS).doc(ar.id).set(ar);
         }
+        for(let dr of data.drivingRecords || []) {
+            await dbStore.collection(COL_DRIVING_RECORDS).doc(dr.id).set(dr);
+        }
+        if (data.employeeNotes) {
+            for (let [key, val] of Object.entries(data.employeeNotes)) {
+                await dbStore.collection('employeeNotes').doc(key).set({text: val});
+            }
+        }
+        try {
+            const vertretungen = JSON.parse(localStorage.getItem('haushaltshilfe_vertretungen')) || [];
+            for (let v of vertretungen) {
+                if (v.id) await dbStore.collection('vertretungDecisions').doc(v.id).set(v);
+            }
+        } catch(e) {}
         for(let ex of data.exceptions || []) {
             await dbStore.collection('exceptions').doc(ex.id).set(ex);
         }
