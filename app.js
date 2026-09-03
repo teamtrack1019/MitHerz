@@ -1889,10 +1889,10 @@ class App {
                         ${absenceReason ? `<div style="font-size:0.8rem; color:#b91c1c; margin-top:0.25rem; font-weight:bold;">Ausfall: ${absenceReason}</div>` : ''}
                     </div>
                     <div style="display: flex; gap: 0.5rem;">
-                        <button class="btn btn-secondary" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; white-space: nowrap; height: fit-content;" onclick="window.app.openDailyEntry('${e.clientId}')">Eintragen</button>
                         <button class="btn btn-secondary" style="padding: 0.5rem;" onclick="window.app.openAusfallModal('${todayStr}', '${entryKey}')" title="Als Ausfall markieren / bearbeiten">
                             <i data-lucide="edit-2"></i>
                         </button>
+                        <button class="btn btn-primary" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; white-space: nowrap; height: fit-content;" onclick="window.app.openDailyEntry('${e.clientId}')">Eintragen</button>
                     </div>
                 </div>
             `;
